@@ -1,6 +1,8 @@
 services:
   web:
     build: .
+    build: .
+    container_name: dealnux-ai-web
     restart: unless-stopped
     env_file:
       - .env
