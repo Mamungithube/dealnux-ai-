@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /app/media && addgroup --system app && adduser --system --ingroup app app && chown -R app:app /app && chmod +x /app/entrypoint.sh
+RUN mkdir -p /app/media && addgroup --system app && adduser --system --ingroup app app && chown -R app:app /app && chmod +x /app/entrypoint.sh && sed -i 's/\r//' /app/entrypoint.sh
 
 USER app
 

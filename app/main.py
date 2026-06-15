@@ -1,3 +1,5 @@
+from fastapi.responses import ORJSONResponse
+import time
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +16,9 @@ from app.core.limiter import redis_client
 from app.core.logger import logger
 from app.media_api.services import MEDIA_ROOT
 from app.core.mcp import mcp_server
+from app.auth.router import router as auth_router
 from mcp.server.sse import SseServerTransport
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,9 +31,6 @@ async def lifespan(app: FastAPI):
     logger.info("Chatbot service shutting down")
 
 
-import time
-from fastapi.responses import ORJSONResponse
-
 app = FastAPI(
     title="Dealnux Chatbot API",
     version="1.0.0",
@@ -38,6 +39,7 @@ app = FastAPI(
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
 )
+
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -55,17 +57,21 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-app.mount(config.FASTAPI_MEDIA_URL, StaticFiles(directory=str(MEDIA_ROOT)), name="media")
+app.mount(config.FASTAPI_MEDIA_URL, StaticFiles(
+    directory=str(MEDIA_ROOT)), name="media")
 app.include_router(chat_router)
 app.include_router(media_router)
 app.include_router(store_router)
+app.include_router(auth_router)
 
 sse = SseServerTransport("/mcp/messages")
+
 
 @app.get("/mcp/sse")
 async def mcp_sse(request: Request):
     async with sse.connect_sse(request.scope, request.receive, request._send) as (read_stream, write_stream):
         await mcp_server.run(read_stream, write_stream, mcp_server.create_initialization_options())
+
 
 @app.post("/mcp/messages")
 async def mcp_messages(request: Request):
@@ -74,7 +80,8 @@ async def mcp_messages(request: Request):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled exception", extra={"path": request.url.path, "error": str(exc)})
+    logger.error("Unhandled exception", extra={
+                 "path": request.url.path, "error": str(exc)})
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

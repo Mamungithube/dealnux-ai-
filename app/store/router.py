@@ -11,6 +11,7 @@ from app.media_api.services import build_image_url
 from app.store.models import Platform, Product, ProductListing
 from app.store.schemas import ProductCard
 from app.store.services import search_products_in_db
+from app.core import config
 
 router = APIRouter(prefix="/api/store", tags=["store"])
 
@@ -35,9 +36,12 @@ async def compare_product_prices(product_id: int, db: AsyncSession = Depends(get
                 id=prod.id,
                 title=prod.title,
                 image_url=build_image_url(prod.main_image),
-                price=float(listing.price) if listing.price is not None else None,
-                original_price=float(listing.original_price) if listing.original_price is not None else None,
-                discount_percentage=float(listing.discount_percentage) if listing.discount_percentage is not None else None,
+                price=float(
+                    listing.price) if listing.price is not None else None,
+                original_price=float(
+                    listing.original_price) if listing.original_price is not None else None,
+                discount_percentage=float(
+                    listing.discount_percentage) if listing.discount_percentage is not None else None,
                 platform_name=platform.name,
                 external_url=listing.external_url,
                 condition=listing.condition,
@@ -48,12 +52,12 @@ async def compare_product_prices(product_id: int, db: AsyncSession = Depends(get
     return products
 
 
-
 @router.post("/visual-search", response_model=List[ProductCard])
 async def visual_search(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     allowed_types = {"image/jpeg", "image/png", "image/webp"}
     if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Invalid image type. Only JPEG, PNG, and WebP are supported.")
+        raise HTTPException(
+            status_code=400, detail="Invalid image type. Only JPEG, PNG, and WebP are supported.")
 
     contents = await file.read()
     base64_image = base64.b64encode(contents).decode("utf-8")
@@ -81,14 +85,17 @@ async def visual_search(file: UploadFile = File(...), db: AsyncSession = Depends
         )
         search_keyword = response.choices[0].message.content.strip()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI Vision error: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"AI Vision error: {str(e)}")
 
     if not search_keyword or "sorry" in search_keyword.lower() or "not identify" in search_keyword.lower():
-        raise HTTPException(status_code=404, detail="I couldn't identify a clear product in this image. Please try a different photo.")
+        raise HTTPException(
+            status_code=404, detail="I couldn't identify a clear product in this image. Please try a different photo.")
 
     found_products = await search_products_in_db(db, keyword=search_keyword)
-    
+
     if not found_products:
-         raise HTTPException(status_code=404, detail=f"I identified this as '{search_keyword}', but couldn't find any matching products in our database.")
+        raise HTTPException(
+            status_code=404, detail=f"I identified this as '{search_keyword}', but couldn't find any matching products in our database.")
 
     return found_products
