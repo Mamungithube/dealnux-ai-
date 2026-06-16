@@ -222,7 +222,8 @@ async def handle_chat_websocket(websocket: WebSocket, token: str | None) -> None
         )
 
         history_key = f"chat_hist:{user_id}"
-        history_data = await redis_client.get(history_key)
+        is_guest = str(user_id).startswith("guest_")
+        history_data = None if is_guest else await redis_client.get(history_key)
         if history_data:
             conversation_history = json.loads(history_data)
         else:
